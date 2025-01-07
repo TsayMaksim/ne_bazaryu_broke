@@ -4,7 +4,7 @@ from email.message import EmailMessage
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 EMAIL_ADDRESS = "nrvnqsr.049@gmail.com"
-EMAIL_PASSWORD = "124598Tsay"
+EMAIL_PASSWORD = ""
 
 def send_email_notification(recipient_email: str, task: dict):
     msg = EmailMessage()
