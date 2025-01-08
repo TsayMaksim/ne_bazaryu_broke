@@ -5,3 +5,5 @@ passlib
 python-jose
 pydantic
 pytelegrambotapi
+bcrypt
+email-validator
