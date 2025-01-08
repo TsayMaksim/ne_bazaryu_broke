@@ -26,7 +26,7 @@ async def login_user(auth_data: AuthModel):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @user_router.get("/me")
-def get_current_user(token: str = Depends(verify_token)):
+async def get_current_user(token: str = Depends(verify_token)):
     return {"email": token}
 
 @user_router.post('/create_user')

@@ -4,6 +4,7 @@ from database.models import Task
 from fastapi import HTTPException
 from database.models import User
 from database.email_service import send_email_notification
+from sqlalchemy.orm import noload, Session
 
 def create_task_db(project_id, title, completed, description=None, due_date=None):
     db = next(get_db())
@@ -25,24 +26,35 @@ def get_project_tasks_db(project_id):
 
 def get_exact_task_db(task_id):
     db = next(get_db())
-    exact_task = db.query(Task).filter_by(id=task_id).first()
+    exact_task = db.query(Task).filter_by(id=task_id).options(
+        noload(Task.project),
+        noload(Task.assignees)
+    ).first()
     return exact_task
 
 def get_all_tasks_db():
     db = next(get_db())
-    all_tasks = db.query(Task).all()
+    all_tasks = db.query(Task).options(
+        noload(Task.project),
+        noload(Task.assignees)
+    ).all()
     return all_tasks
 
-def update_task_db(task_id, change_info, new_info):
-    db = next(get_db())
-    update_task = db.query(Task).filter_by(id=task_id).first()
-    if update_task:
-        if hasattr(update_task, change_info):
-            setattr(update_task, change_info, new_info)
-            update_task.updated_at = datetime.utcnow()
+def update_task_db(task_id: int, change_info: str, new_info, db: Session):
+    update_task = db.query(Task).filter(Task.id == task_id).first()
+    if not update_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if hasattr(update_task, change_info):
+        setattr(update_task, change_info, new_info)
+        update_task.updated_at = datetime.utcnow()
+        try:
             db.commit()
             return True
-    return False
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid column: {change_info}")
 
 def delete_task_db(task_id):
     db = next(get_db())
@@ -85,7 +97,7 @@ def assign_task_to_user(task_id: int, user_id: int):
         "due_date": task.due_date,
         "completed": task.completed,
     }
-    send_email_notification(user.email, task_data)
+    send_email_notification(task_data, user_id)
     return {"message": "Пользователь назначен на задачу и уведомлен по email."}
 
 def remove_users_from_task(task_id: int, user_ids: list[int]):

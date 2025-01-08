@@ -1,8 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from database.task_service import *
 from api import result_message
 from database.tg_service import *
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 task_router = APIRouter(prefix='/task', tags=['Задачи'])
 
@@ -10,8 +11,18 @@ class AssignTaskRequest(BaseModel):
     task_id: int
     user_id: int
 
+class EmailNotificationModel(BaseModel):
+    user_id: int
+    task: dict
+
+class TaskUpdate(BaseModel):
+    title: str = None
+    description: str = None
+    completed: bool = None
+    due_date: str = None
+
 @task_router.post("/assign")
-def assign_task(data: AssignTaskRequest):
+async def assign_task(data: AssignTaskRequest):
     try:
         result = assign_task_to_user(task_id=data.task_id, user_id=data.user_id)
         return result
@@ -39,9 +50,11 @@ async def get_exact_task(task_id: int):
     return result_message(result)
 
 @task_router.put('/update_task')
-async def update_task(task_id: int, change_info: str, new_info: str):
-    result = update_task_db(task_id=task_id, change_info=change_info, new_info=new_info)
-    return result_message(result)
+async def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get_db)):
+    success = update_task_db(task_id, "completed", task_update.completed, db)
+    if success:
+        return {"message": "Task updated successfully"}
+    raise HTTPException(status_code=400, detail="Failed to update task")
 
 @task_router.delete('/delete_task')
 async def delete_task(task_id: int):
@@ -54,13 +67,13 @@ async def get_project_tasks(project_id: int):
     return result_message(result)
 
 @task_router.post("/{task_id}/assign-users")
-def assign_users(task_id: int, user_ids: list[int]):
+async def assign_users(task_id: int, user_ids: list[int]):
     task = assign_users_to_task(task_id, user_ids)
     return {"message": "Пользователи успешно добавлены", "task": {"id": task.id, "title": task.title, "assignees":
         [user.id for user in task.assignees]}}
 
 @task_router.post("/{task_id}/remove-users")
-def remove_users(task_id: int, user_ids: list[int]):
+async def remove_users(task_id: int, user_ids: list[int]):
     task = remove_users_from_task(task_id, user_ids)
     return {"message": "Пользователи успешно удалены", "task": {"id": task.id, "title": task.title, "assignees":
         [user.id for user in task.assignees]}}

@@ -4,6 +4,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi import HTTPException, status
+from sqlalchemy.orm import noload
 
 SECRET_KEY = "searchingforhotmilfsinmyarea"
 ALGORITHM = "HS256"
@@ -57,12 +58,18 @@ def create_user_db(name, email, password,  telegram_id):
 
 def get_all_users_db():
     db = next(get_db())
-    all_users = db.query(User).all()
+    all_users = db.query(User).options(
+        noload(User.tasks),
+        noload(User.projects)
+    ).all()
     return all_users
 
 def get_exact_user_db(user_id):
     db = next(get_db())
-    exact_user = db.query(User).filter_by(id=user_id).first()
+    exact_user = db.query(User).filter_by(id=user_id).options(
+        noload(User.tasks),
+        noload(User.projects)
+    ).first()
     return exact_user
 
 def get_user_by_email_db(email):

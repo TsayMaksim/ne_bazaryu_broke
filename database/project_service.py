@@ -1,5 +1,6 @@
 from database import get_db
 from database.models import Project
+from sqlalchemy.orm import noload
 
 def create_project_db(user_id, name, description=None):
     db = next(get_db())
@@ -15,12 +16,18 @@ def get_user_projects_db(user_id):
 
 def get_exact_project_db(project_id):
     db = next(get_db())
-    exact_project = db.query(Project).filter_by(id=project_id).first()
+    exact_project = db.query(Project).filter_by(id=project_id).options(
+        noload(Project.tasks),
+        noload(Project.owner)
+    ).first()
     return exact_project
 
 def get_all_projects_db():
     db = next(get_db())
-    all_projects = db.query(Project).all()
+    all_projects = db.query(Project).options(
+        noload(Project.tasks),
+        noload(Project.owner)
+    ).all()
     return all_projects
 
 def update_project_db(project_id, change_info, new_info):
